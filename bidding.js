@@ -5,7 +5,8 @@ let first_result = null;
 let current_channel = null;
 let itemsArea = null;
 
-//The below function is for the interactive demo on PubNub.com. It is not part of the demo of this application. 
+//The below function is for the interactive demo on PubNub.com. It is not part of the demo of this application.
+console.log(window.location.href); 
 var actionCompleted = function(args) {
     console.log("action completed");
     const pub = 'pub-c-c8d024f7-d239-47c3-9a7b-002f346c1849';
