@@ -243,7 +243,7 @@ function placeBid(new_msg_bidding_channel, new_msg_name, new_msg_description, ne
                             // handle status, response
                             // console.log(response);
                         });
-                        actionCompleted({action: 'Place A Bid', windowLocation: window.location.href}); // This is for the interactive demo on PubNub.com. It is not part of the demo of this application. 
+                        actionCompleted({action: 'Place A Bid', windowLocation: 'https://pubnubdevelopers.github.io/Auction-Demo/'}); // This is for the interactive demo on PubNub.com. It is not part of the demo of this application. 
                         alert("Your bid has been placed.")
                     } else {
                         alert("Your new bid must be higher than the previous bids.")
@@ -339,7 +339,8 @@ function newItem() {
         // handle status, response
         //console.log(response);
     });
-    actionCompleted({action: 'Create An Auction', windowLocation: window.location.href}); // This is for the interactive demo on PubNub.com. It is not part of the demo of this application. 
+    actionCompleted({action: 'Create An Auction', windowLocation: 'https://pubnubdevelopers.github.io/Auction-Demo/'}); // This is for the interactive demo on PubNub.com. It is not part of the demo of this application. 
+
     alert("New auction has been posted.");
     document.getElementById('contactInput').value = "";
     document.getElementById('nameInput').value = "";
@@ -360,14 +361,14 @@ function loadBidding(channel) {
         document.getElementById('online-users-label').style.visibility = 'hidden';
     } else if (channel == "auctions") { // If loading your bids or auctions then hide the create new auction button
         setActive("auctions");
-        actionCompleted({action: 'View Your Auctions', windowLocation: window.location.href}); // This is for the interactive demo on PubNub.com. It is not part of the demo of this application. 
+        actionCompleted({action: 'View Your Auctions', windowLocation: 'https://pubnubdevelopers.github.io/Auction-Demo/'}); // This is for the interactive demo on PubNub.com. It is not part of the demo of this application. 
         current_channel = sub + "_auctions";
         document.getElementById('cat-label-head').innerHTML = "Your Auctions";
         document.getElementById('create_new').style.visibility = 'hidden';
         document.getElementById('online-users-label').style.visibility = 'hidden';
     } else {
         setActive(channel);
-        actionCompleted({action: 'Change Category', windowLocation: window.location.href}); // This is for the interactive demo on PubNub.com. It is not part of the demo of this application. 
+        actionCompleted({action: 'Change Category', windowLocation: 'https://pubnubdevelopers.github.io/Auction-Demo/'}); // This is for the interactive demo on PubNub.com. It is not part of the demo of this application. 
         document.getElementById('cat-label-head').innerHTML = channel;
         document.getElementById('create_new').style.visibility = 'visible';
         document.getElementById('online-users-label').style.visibility = 'visible';
@@ -441,7 +442,7 @@ const updateUI = async () => {
         });
         sub = userdetails.sub;
         loadBidding("your-bids");
-        actionCompleted({action: 'Login To Bid', windowLocation: window.location.href}); // This is for the interactive demo on PubNub.com. It is not part of the demo of this application. 
+        actionCompleted({action: 'Login To Bid', windowLocation: 'https://pubnubdevelopers.github.io/Auction-Demo/'}); // This is for the interactive demo on PubNub.com. It is not part of the demo of this application. 
         document.cookie.split(";").forEach(function(c) { document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); });
     }
 }
