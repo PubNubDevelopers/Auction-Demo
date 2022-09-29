@@ -428,6 +428,9 @@ function loadBidding(channel) {
                     auction_item.displayItem(pubnub.getUUID(), message.uuid, message.message, message.timetoken);
                 });
             }
+            if (document.getElementById('items-area').childNodes.length === 0) {
+                document.getElementById('items-area').innerHTML = "Nothing here to show. Try creating a new auction or placing a bid."
+            } 
         }
     );
 }
