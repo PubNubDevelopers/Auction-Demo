@@ -1,0 +1,9 @@
+{
+    "features": [
+      "Login To Bid",
+      "Change Category",
+      "Create An Auction",
+      "Place A Bid",
+      "View Your Auctions"
+    ]
+}
