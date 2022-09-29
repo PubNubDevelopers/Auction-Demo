@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="icon" type="image/png" href="icon.png">
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+        <link rel="stylesheet" href="https://pubnubdevelopers.github.io/Auction-Demo/styles.css">
+        <title>Instrument Auction Demo</title>
+    </head>
+    <body>
+        <nav class="py-3 navbar navbar-expand-lg navbar-dark bg-dark">
+            <div class="container d-flex flex-wrap">
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarsmenu" aria-controls="navbarsmenu" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                  </button>
+                <div class="collapse navbar-collapse"  id="navbarsmenu">
+                    <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                        <li class="nav-item"><a href="#" id="your-bids"  onclick="loadBidding('your-bids')" class="nav-link px-2 active" aria-current="page">Your Bids</a></li>
+                        <li class="nav-item"><a href="#" id="auctions" onclick="loadBidding('auctions')" class="nav-link px-2">Your Auctions</a></li>
+                        <li class="nav-item"><a href="#" id="Woodwind"onclick="loadBidding('Woodwind')" class="nav-link px-2">Woodwind</a></li>
+                        <li class="nav-item"><a href="#" id="Brass"onclick="loadBidding('Brass')" class="nav-link px-2">Brass</a></li>
+                        <li class="nav-item"><a href="#" id="Stringed" onclick="loadBidding('Stringed')" class="nav-link px-2">Stringed</a></li>
+                        <li class="nav-item"><a href="#" id="Percussion" onclick="loadBidding('Percussion')" class="nav-link px-2">Percussion</a></li>
+                    </ul>
+                    <ul class="navbar-nav">
+                        <li class="nav-item"><a href="#" onclick="logout()" class="nav-link px-2">Logout</a></li>
+                    </ul>
+                  </div>
+                </div>
+            </div>
+        </nav>
+        <header class="py-3 mb-4 border-bottom">
+            <div class="container d-flex flex-wrap">
+                <div class="row">
+                    <div class="col text-left">
+                        <a href="/" class="d-flex align-items-center mb-3 mb-lg-0 me-lg-auto text-dark text-decoration-none">
+                            <svg class="bi me-2" width="40" height="32"><use xlink:href="#bootstrap"/></svg>
+                            <span id="cat-label-head"class="fs-4">Your Recent Bids</span>
+                        </a>
+                    </div>
+                    <div class="col-md-auto">
+                    <div class="modal" id="newAuctionModal" tabindex="-1" role="dialog">
+                        <div class="modal-dialog modal-dialog-centered" role="document">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Create New Auction</h5>
+                                    <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                                </div>
+                                <div class="modal-body">
+                                    <p>Item Name</p>
+                                    <input class="form-control" type="text" class="form-control-plaintext" id="nameInput" onkeydown="limit(this, 30);" placeholder="Item Name">
+                                    <br>
+                                    <p>Item Description</p>
+                                    <textarea class="form-control" id="desInput" type="text" class="form-control-plaintext" onkeydown="limit(this, 200);" placeholder="What is it? Where is it located?"></textarea>
+                                    <br>
+                                    <p>Item Image</p>
+                                    <input class="form-control" type="file" id="imageInput" placeholder="/images/lamp.png">
+                                    <br>
+                                    <p>Contact Info (Shared with winner)</p>
+                                    <input class="form-control" id="contactInput" type="text" class="form-control-plaintext" onkeydown="limit(this, 100);" placeholder="Tell the winner how to contact you.">
+                                    <br>
+                                    <p>Shipping Options</p>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" value="" id="shipCheckChecked" checked>
+                                        <label class="form-check-label" for="shipCheckChecked">
+                                          I'm willling to ship to buyer
+                                        </label>
+                                    </div>
+                                    <br>
+                                    <p>Auction Length</p>
+                                    <select class="form-select" aria-label="auction time" id="time_select">
+                                        <option selected value="1">1 Hour</option>
+                                        <option value="2">12 Hours</option>
+                                        <option value="3">24 Hours</option>
+                                    </select>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" data-bs-dismiss="modal" class="btn btn-secondary">Cancel</button>
+                                    <button id="newPublish" type="button" onclick="newItem()" class="btn btn-primary">Publish</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <button data-bs-toggle="modal" id="create_new" data-bs-target="#newAuctionModal" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newAuctionModal" type="button">Create New Auction</button>
+                  </div>               
+                </div>
+
+            </div>
+        </header>
+        <div class="msg-group" id="items-area">                 
+        </div>
+        <nav aria-label="page-buttons-nav"  class="container d-flex flex-wrap justify-content-center">
+            <ul id="page-buttons" class="pagination hidden">
+              <li class="page-item" id="load-more-button">
+                <a class="page-link" onclick="loadMore()" style="visibility: hidden;" href="#!">Load More</a>
+              </li>
+            </ul>
+          </nav>
+        <span class="badge bg-primary online-users-label" id="online-users-label">Online Bidders: <span id="online-users-count">NA</span></span>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
+        <script src="https://cdn.pubnub.com/sdk/javascript/pubnub.7.1.2.min.js"></script>
+        <script src="https://cdn.auth0.com/js/auth0-spa-js/1.19/auth0-spa-js.production.js"></script>
+        <script src="https://pubnubdevelopers.github.io/Auction-Demo/bidding.js"></script>
+    </body>
+</html>

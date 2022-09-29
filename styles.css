@@ -1,0 +1,35 @@
+.card {
+    padding: 8px 0px 8px 0px;
+    margin: 8px;
+    overflow-y: auto;
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+}
+
+.card:last-child {
+    margin-bottom: 130px;
+}
+
+.input-btn {
+    height: 90px;
+}
+
+.input-group {
+    position: fixed;
+    height: 90px;
+    bottom: 10px;
+}
+
+.msg-group {
+    height: 90%;
+    overflow-y: scroll;
+}
+
+.online-users-label {
+    position: fixed;
+    bottom: 0px;
+}
+
+textarea {
+    resize: none;
+}
