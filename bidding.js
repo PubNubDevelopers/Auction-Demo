@@ -4,13 +4,24 @@ let pubnub = null;
 let first_result = null;
 let current_channel = null;
 let itemsArea = null;
-let orgwindowlocation = sessionStorage['orgwindowlocation'];
+let orgwindowlocation = getCookie('orgwindowlocation');
 
 window.onload = async () => {
     await configureClient()
     await processLoginState()
     updateUI();
     itemsArea = document.getElementById('items-area');
+}
+
+function getCookie(cName) {
+    const name = cName + "=";
+    const cDecoded = decodeURIComponent(document.cookie);
+    const cArr = cDecoded .split('; ');
+    let res;
+    cArr.forEach(val => {
+        if (val.indexOf(name) === 0) res = val.substring(name.length);
+    })
+    return res;
 }
 
 const configureClient = async () => {

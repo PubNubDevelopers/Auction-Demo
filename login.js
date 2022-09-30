@@ -2,7 +2,7 @@ let auth0 = null
 
 window.onload = async () => {
   await configureClient()
-  sessionStorage['orgwindowlocation'] = window.location.href;
+  document.cookie = "orgwindowlocation="+window.location.href;
 }
 
 const configureClient = async () => {
