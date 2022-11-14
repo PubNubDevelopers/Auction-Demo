@@ -289,7 +289,7 @@ function loadMore() {
                 });
             }
             if (document.getElementById('items-area').childNodes.length === 0) {
-                document.getElementById('items-area').innerHTML = "Nothing here to show. Try creating a new auction or placing a bid."
+                document.getElementById('items-area').innerHTML = "<div class='card text-white bg-dark'><div class='card-body'>There are no auction listings to show. Select a category from then menu and then create a new auction. Auctions you create can be viewed in the 'Your Auctions' section. When you place a bid on an auction item it can be viewed in the 'Your Bids' section.</div></div>"
             } 
         }
     );
@@ -440,7 +440,7 @@ function loadBidding(channel) {
                 });
             }
             if (document.getElementById('items-area').childNodes.length === 0) {
-                document.getElementById('items-area').innerHTML = "Nothing here to show. Try creating a new auction or placing a bid."
+                document.getElementById('items-area').innerHTML = "<div class='card text-white bg-dark'><div class='card-body'>There are no auction listings to show. Select a category from then menu and then create a new auction. Auctions you create can be viewed in the 'Your Auctions' section. When you place a bid on an auction item it can be viewed in the 'Your Bids' section.</div></div>"
             } 
         }
     );
