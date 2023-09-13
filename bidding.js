@@ -88,7 +88,6 @@ class auctionItemControl { // Formats messages and scrolls into view.
         }
         if (new_msg.bidding_channel == undefined) {
             new_msg.bidding_channel = "TestItemName" + new Date().getTime() + 3650000;
-            console.log("Channel: " + new_msg.bidding_channel)
         }
         if (new_msg.image == undefined) {
             new_msg.image = "https://pubnubdevelopers.github.io/Auction-Demo/images/lamp.png";
@@ -222,7 +221,6 @@ var auction_item = new auctionItemControl();
 
 function placeBid(new_msg_bidding_channel, new_msg_name, new_msg_description, new_msg_image, new_msg_collect_details, new_msg_shipping, new_msg_end_time) {
     // Get last Bid
-    console.log("placing bid on " + new_msg_bidding_channel)
     pubnub.fetchMessages(
         {
             channels: [new_msg_bidding_channel],
@@ -336,7 +334,6 @@ function newItem() {
         end_time: set_end_time,
         bidding_channel: new_bidding_channel
     }
-    console.log("publishing to " + current_channel);
     pubnub.publish({
         message: new_auction_item,
         channel: current_channel,
@@ -344,7 +341,6 @@ function newItem() {
         // handle status, response
         console.log(response);
     });
-    console.log("publishing to " + sub + "_auctions");
     pubnub.publish({
         message: new_auction_item,
         channel: sub + "_auctions",
@@ -352,7 +348,6 @@ function newItem() {
         // console.log(response);
         // handle status, response
     });
-    console.log("publishing to " + new_bidding_channel);
     pubnub.publish({
         message: "0",
         channel: new_bidding_channel,
@@ -370,7 +365,6 @@ function newItem() {
 }
 
 function loadBidding(channel) {
-    console.log('load bidding: ' + channel)
     if (itemsArea != null) 
     
     itemsArea.innerHTML = "";
@@ -395,7 +389,6 @@ function loadBidding(channel) {
         document.getElementById('cat-label-head').innerHTML = channel;
         document.getElementById('create_new').style.visibility = 'visible';
         document.getElementById('online-users-label').style.visibility = 'visible';
-        console.log("Here Now: " + channel)
         pubnub.hereNow({ // Update the number of online members.
             channels: [channel],
         }).then((response) => {
@@ -407,7 +400,6 @@ function loadBidding(channel) {
         }).catch((error) => {
             // console.log(error)
         });
-        console.log('subscribing to ' + channel)
         pubnub.subscribe({ // Subscribe to wait for messages
             channels: [channel],
             withPresence: true
@@ -429,7 +421,6 @@ function loadBidding(channel) {
     });
 
     document.getElementById('page-buttons').style.visibility = 'hidden';
-    console.log("fetching " + current_channel)
     pubnub.fetchMessages( // Get the last 10 items
         {
             channels: [current_channel],
