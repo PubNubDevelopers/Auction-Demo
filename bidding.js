@@ -1,9 +1,9 @@
-let auth0 = null;
+//let auth0 = null;
 let sub = null;
 let pubnub = null;
 let first_result = null;
 let current_channel = null;
-let itemsArea = null;
+let itemsArea = document.getElementById('items-area');
 let orgwindowlocation = getCookie('orgwindowlocation');
 
 window.onload = async () => {
@@ -25,27 +25,28 @@ function getCookie(cName) {
 }
 
 const configureClient = async () => {
-    auth0 = await createAuth0Client({
-        domain: "authclone.auth0.com",
-        client_id: "SLdXBBCNTZTa99Zio4Pe8eJ5hxjPrOS5",
-    })
+    //auth0 = await createAuth0Client({
+    //    domain: "authclone.auth0.com",
+    //    client_id: "SLdXBBCNTZTa99Zio4Pe8eJ5hxjPrOS5",
+    //})
 }
 
 const processLoginState = async () => {
     // Check code and state parameters
-    const query = window.location.search
-    if (query.includes("code=") && query.includes("state=")) {
-        // Process the login state
-        await auth0.handleRedirectCallback()
-        // Use replaceState to redirect the user away and remove the querystring parameters
-        window.history.replaceState({}, document.title, window.location.pathname)
-    }
+    //const query = window.location.search
+    //if (query.includes("code=") && query.includes("state=")) {
+    //    // Process the login state
+    //    await auth0.handleRedirectCallback()
+    //    // Use replaceState to redirect the user away and remove the querystring parameters
+    //    window.history.replaceState({}, document.title, window.location.pathname)
+    //}
 }
 
 const logout = () => {
-    auth0.logout({
-        returnTo: "https://pubnubdevelopers.github.io/Auction-Demo/",
-    })
+    //auth0.logout({
+    //    returnTo: "https://pubnubdevelopers.github.io/Auction-Demo/",
+    //})
+    window.location.href = "./index.html"
 }
 
 function makeRandom(length) {
@@ -87,6 +88,7 @@ class auctionItemControl { // Formats messages and scrolls into view.
         }
         if (new_msg.bidding_channel == undefined) {
             new_msg.bidding_channel = "TestItemName" + new Date().getTime() + 3650000;
+            console.log("Channel: " + new_msg.bidding_channel)
         }
         if (new_msg.image == undefined) {
             new_msg.image = "https://pubnubdevelopers.github.io/Auction-Demo/images/lamp.png";
@@ -95,7 +97,7 @@ class auctionItemControl { // Formats messages and scrolls into view.
             new_msg.shipping = "Yes";
         }
         if (new_msg.collect_details == undefined) {
-            new_msg.collect_details = "Please contact chandler@pubnub.com for payment and shipping. Thank you for buying (:";
+            new_msg.collect_details = "Please contact devrel@pubnub.com for payment and shipping. Thank you for buying (:";
         }
 
         // Countdown
@@ -159,7 +161,7 @@ class auctionItemControl { // Formats messages and scrolls into view.
             });
 
         // Delete the next line to fix images
-        new_msg.image = "https://pubnubdevelopers.github.io/Auction-Demo/images/lamp.png";
+        new_msg.image = "./images/lamp.png";
         var new_vote = "x"+makeRandom(5);
         var msgTemp = `
             <div class="card text-white bg-${style}">
@@ -220,6 +222,7 @@ var auction_item = new auctionItemControl();
 
 function placeBid(new_msg_bidding_channel, new_msg_name, new_msg_description, new_msg_image, new_msg_collect_details, new_msg_shipping, new_msg_end_time) {
     // Get last Bid
+    console.log("placing bid on " + new_msg_bidding_channel)
     pubnub.fetchMessages(
         {
             channels: [new_msg_bidding_channel],
@@ -327,12 +330,13 @@ function newItem() {
         name: document.getElementById('nameInput').value,
         description: document.getElementById('desInput').value,
         //image: document.getElementById('imageInput').value,
-        image: "https://pubnubdevelopers.github.io/Auction-Demo/images/lamp.png",
+        image: "./images/lamp.png",
         collect_details: document.getElementById('contactInput').value,
         shipping: will_ship,
         end_time: set_end_time,
         bidding_channel: new_bidding_channel
     }
+    console.log("publishing to " + current_channel);
     pubnub.publish({
         message: new_auction_item,
         channel: current_channel,
@@ -340,6 +344,7 @@ function newItem() {
         // handle status, response
         console.log(response);
     });
+    console.log("publishing to " + sub + "_auctions");
     pubnub.publish({
         message: new_auction_item,
         channel: sub + "_auctions",
@@ -347,6 +352,7 @@ function newItem() {
         // console.log(response);
         // handle status, response
     });
+    console.log("publishing to " + new_bidding_channel);
     pubnub.publish({
         message: "0",
         channel: new_bidding_channel,
@@ -359,12 +365,14 @@ function newItem() {
     alert("New auction has been posted.");
     document.getElementById('contactInput').value = "";
     document.getElementById('nameInput').value = "";
-    document.getElementById('imageInput').value = "";
     document.getElementById('desInput').value = "";
     loadBidding(current_channel); // Reload view
 }
 
 function loadBidding(channel) {
+    console.log('load bidding: ' + channel)
+    if (itemsArea != null) 
+    
     itemsArea.innerHTML = "";
     pubnub.unsubscribeAll();
     current_channel = channel;
@@ -387,6 +395,7 @@ function loadBidding(channel) {
         document.getElementById('cat-label-head').innerHTML = channel;
         document.getElementById('create_new').style.visibility = 'visible';
         document.getElementById('online-users-label').style.visibility = 'visible';
+        console.log("Here Now: " + channel)
         pubnub.hereNow({ // Update the number of online members.
             channels: [channel],
         }).then((response) => {
@@ -398,6 +407,7 @@ function loadBidding(channel) {
         }).catch((error) => {
             // console.log(error)
         });
+        console.log('subscribing to ' + channel)
         pubnub.subscribe({ // Subscribe to wait for messages
             channels: [channel],
             withPresence: true
@@ -419,6 +429,7 @@ function loadBidding(channel) {
     });
 
     document.getElementById('page-buttons').style.visibility = 'hidden';
+    console.log("fetching " + current_channel)
     pubnub.fetchMessages( // Get the last 10 items
         {
             channels: [current_channel],
@@ -447,17 +458,40 @@ function loadBidding(channel) {
 }
 
 const updateUI = async () => {
-    const isAuthenticated = await auth0.isAuthenticated()
+    //const isAuthenticated = await auth0.isAuthenticated()
+    const isAuthenticated = true;
     if (!isAuthenticated) {
-        window.location.replace("https://pubnubdevelopers.github.io/Auction-Demo/");
+        //window.location.replace("https://pubnubdevelopers.github.io/Auction-Demo/");
     } else {
-        const userdetails = await auth0.getUser();
+        //const userdetails = await auth0.getUser();
+        const userdetails = {
+            "nickname": "devrel",
+            "name": "devrel@pubnub.com",
+            "picture": "https://s.gravatar.com/avatar/1c640ddc62e2a85a6820eed4eb5e8090?s=480&r=pg&d=https%3A%2F%2Fcdn.auth0.com%2Favatars%2Fde.png",
+            "updated_at": "2023-09-12T13:17:24.101Z",
+            "email": "devrel@pubnub.com",
+            "email_verified": false,
+            "sub": "auth0|633708320565b1f8a9d62333"
+        }
         // console.log("User ID: " + userdetails.sub);
         pubnub = new PubNub({ // Set your PubNub keys here 
-            publishKey: 'pub-c-9c98cd2a-92ee-4951-a92c-3796ee1b739d',
-            subscribeKey: 'sub-c-06995b2a-b1f3-4079-929a-056e9d243775',
+            publishKey: 'pub-c-1d61c6ac-e949-437e-bdc1-8a3e324b6dc9',
+            subscribeKey: 'sub-c-0a9e48a8-f4a8-4d62-bbf0-242c60f5a522',
             uuid: userdetails.sub
         });
+
+        //  IN PRODUCTION: Replace with your own logic to request an Access Manager token
+        var accessManagerToken = await requestAccessManagerToken(userdetails.sub)
+        if (accessManagerToken == null) {
+            console.log('Error retrieving access manager token')
+        } else {
+            pubnub.setToken(accessManagerToken)
+            //  The server that provides the token for this app is configured to grant a time to live (TTL)
+            //  of 360 minutes (i.e. 6 hours).  IN PRODUCTION, for security reasons, you should set a value
+            //  between 10 and 60 minutes and refresh the token before it expires.
+            //  For simplicity, this app does not refresh the token
+        }
+
         sub = userdetails.sub;
         loadBidding("your-bids");
         actionCompleted({action: 'Login To Bid', windowLocation: orgwindowlocation}); // This is for the interactive demo on PubNub.com. It is not part of the demo of this application. 
@@ -465,99 +499,24 @@ const updateUI = async () => {
     }
 }
 
-//The below function is for the interactive demo on PubNub.com. It is not part of the demo of this application. 
-var actionCompleted = function(args) {
-    const pub = 'pub-c-c8d024f7-d239-47c3-9a7b-002f346c1849';
-    const sub = 'sub-c-95fe09e0-64bb-4087-ab39-7b14659aab47';
-    let identifier = "";
-    let action = args.action;
-    let blockDuplicateCalls = args.blockDuplicateCalls;
-    let debug = args.debug;
-    let windowLocation = args.windowLocation;
+async function requestAccessManagerToken (userId) {
+    try {
+        const TOKEN_SERVER = 'https://devrel-demos-access-manager.netlify.app/.netlify/functions/api/auctions'
+        const response = await fetch(`${TOKEN_SERVER}/grant`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ UUID: userId })
+        })
 
-    if (typeof action === 'undefined')
-    {
-        console.log('Interactive Demo Integration Error: No action provided');        
-        return;
-    }
+        const token = (await response.json()).body.token
+        //console.log('created token: ' + token)
 
-    if (typeof blockDuplicateCalls === 'undefined')
-    {
-        blockDuplicateCalls = true;
+        return token
+    } catch (e) {
+        console.log('failed to create token ' + e)
+        return null
     }
+}
 
-    if (typeof debug === 'undefined')
-    {
-        debug = false;
-    }
-
-    //  If invoked from client-side, you can omit the window location
-    if (typeof windowLocation === 'undefined')
-        windowLocation = window.location.href;
-
-    var fetchClient = null;
-    if (typeof fetch === 'undefined')
-        fetchClient = args.fetchClient;
-    else
-        fetchClient = fetch;
-
-    let queryString = new URL(windowLocation).search.substring(1);
-    const urlParamsArray = queryString.split('&');
-    for (let i = 0; i < urlParamsArray.length; i++) {
-        if (urlParamsArray[i].startsWith('identifier') && urlParamsArray[i].includes('=')) {
-            let identifierPair = urlParamsArray[i].split('=');
-            identifier = identifierPair[1];
-        }
-    }
-    if (identifier === "") {
-        if (debug)
-        {
-            console.log('Interactive Demo Integration Error: Failed to detect identifier in URL query string');
-        }
-        return;
-    }
-    if (blockDuplicateCalls) {
-        //  This option only works if the sessionStorage object is defined (client-side only)
-        try {
-            if (!(typeof sessionStorage === 'undefined')) {
-                //  Read the id from session storage and only send the message if the message was not previous sent
-                let sessionStorageKey = "Demo_" + identifier + action;
-                let storedId = sessionStorage.getItem(sessionStorageKey);
-                if (storedId == null) {
-                    if (debug)
-                        console.log('Setting session key to avoid duplicate future messages being sent. Action: ' + action + '. Identifier: ' + identifier);
-                        sessionStorage.setItem(sessionStorageKey, "set");
-                }
-                else {
-                    //  This is a duplicate message, do not send it
-                    if (debug)
-                        console.log('Message blocked as it is a duplicate. Action: ' + action + '. Identifier: ' + identifier);
-                    return;
-                }
-            }                   
-        }
-        catch (err) {} //  Session storage is not available
-    }
-
-    if (debug)
-    {
-        console.log('Sending message. Action: ' + action + '. Identifier: ' + identifier);
-    }
-    
-    const url = `https://ps.pndsn.com/publish/${pub}/${sub}/0/demo/myCallback/${encodeURIComponent(JSON.stringify({ id: identifier, feature: action }))}?store=0&uuid=${identifier}`;
-    fetchClient(url)
-        .then(response => {
-        if (!response.ok) {
-            throw new Error(response.status + ' ' + response.statusText);
-        }
-        return response;
-    })
-        .then(data => {
-        //  Successfully set demo action with demo server
-        console.log("Guided Demo Integration success", url, data)
-    })
-        .catch(e => {
-        console.log('Interactive Demo Integration: ', e);
-    });
-    return;
-} 
