@@ -13,7 +13,7 @@ const configureClient = async () => {
 }
 
 const login = async () => {
-  window.location.href="./bidding.html"
+  window.location.href="./bidding.html" + window.location.search
   //await auth0.loginWithRedirect({
   //  redirect_uri: "https://pubnubdevelopers.github.io/Auction-Demo/bidding.html",
   //})

@@ -46,7 +46,7 @@ const logout = () => {
     //auth0.logout({
     //    returnTo: "https://pubnubdevelopers.github.io/Auction-Demo/",
     //})
-    window.location.href = "./index.html"
+    window.location.href = "./index.html" + window.location.search
 }
 
 function makeRandom(length) {
