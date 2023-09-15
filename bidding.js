@@ -485,7 +485,6 @@ const updateUI = async () => {
 
         sub = userdetails.sub;
         loadBidding("your-bids");
-        actionCompleted({action: 'Login To Bid', windowLocation: orgwindowlocation}); // This is for the interactive demo on PubNub.com. It is not part of the demo of this application. 
         document.cookie.split(";").forEach(function(c) { document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); });
     }
 }
