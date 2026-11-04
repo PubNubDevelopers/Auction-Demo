@@ -261,7 +261,7 @@ function placeBid(biddingChannel) {
 
 function loadMore() {
     document.getElementById('page-buttons').style.visibility = 'hidden';
-    pubnub.fetchMessages( // Get the last 10 items
+    pubnub.fetchMessages( // Get the latest items
         {
             channels: [current_channel],
             count: 11,
@@ -407,7 +407,7 @@ function loadBidding(channel) {
     }
 
     document.getElementById('page-buttons').style.visibility = 'hidden';
-    pubnub.fetchMessages( // Get the last 10 items
+    pubnub.fetchMessages( // Get the latest items
         {
             channels: [current_channel],
             count: 11,
