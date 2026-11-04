@@ -127,7 +127,11 @@ class auctionItemControl { // Formats messages and scrolls into view.
 
         // Subscribe to the item's bidding channel: every new bid updates the current bid.
         const subscription = pubnub.channel(new_msg.bidding_channel).subscription();
-        subscription.onMessage = (event) => showCurrentBid(event.channel, event.message);
+        let liveBidSeen = false;
+        subscription.onMessage = (event) => {
+            liveBidSeen = true;
+            showCurrentBid(event.channel, event.message);
+        };
         subscription.subscribe();
         viewSubscriptions.push(subscription);
         displayedItems.set(new_msg.bidding_channel, new_msg);
@@ -140,7 +144,7 @@ class auctionItemControl { // Formats messages and scrolls into view.
             },
             function (status, response) {
                 const lastMessage = response?.channels?.[new_msg.bidding_channel]?.[0];
-                if (lastMessage) showCurrentBid(new_msg.bidding_channel, lastMessage.message);
+                if (lastMessage && !liveBidSeen) showCurrentBid(new_msg.bidding_channel, lastMessage.message); // A live bid is newer.
             });
 
         // Delete the next line to fix images
@@ -280,7 +284,7 @@ function loadMore() {
                 });
             }
             if (document.getElementById('items-area').childNodes.length === 0) {
-                document.getElementById('items-area').innerHTML = "<div class='card text-white bg-dark'><div class='card-body'>There are no auction listings to show. Select a category from then menu and then create a new auction. Auctions you create can be viewed in the 'Your Auctions' section. When you place a bid on an auction item it can be viewed in the 'Your Bids' section.</div></div>"
+                document.getElementById('items-area').innerHTML = "<div class='card text-white bg-dark'><div class='card-body'>There are no auction listings to show. Select a category from the menu and then create a new auction. Auctions you create can be viewed in the 'Your Auctions' section. When you place a bid on an auction item it can be viewed in the 'Your Bids' section.</div></div>"
             } 
         }
     );
@@ -425,7 +429,7 @@ function loadBidding(channel) {
                 });
             }
             if (document.getElementById('items-area').childNodes.length === 0) {
-                document.getElementById('items-area').innerHTML = "<div class='card text-white bg-dark'><div class='card-body'>There are no auction listings to show. Select a category from then menu and then create a new auction. Auctions you create can be viewed in the 'Your Auctions' section. When you place a bid on an auction item it can be viewed in the 'Your Bids' section.</div></div>"
+                document.getElementById('items-area').innerHTML = "<div class='card text-white bg-dark'><div class='card-body'>There are no auction listings to show. Select a category from the menu and then create a new auction. Auctions you create can be viewed in the 'Your Auctions' section. When you place a bid on an auction item it can be viewed in the 'Your Bids' section.</div></div>"
             } 
         }
     );
