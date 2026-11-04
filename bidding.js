@@ -383,16 +383,21 @@ function loadBidding(channel) {
         document.getElementById('cat-label-head').innerHTML = channel;
         document.getElementById('create_new').style.visibility = 'visible';
         document.getElementById('online-users-label').style.visibility = 'visible';
+        // Subscribe to the category channel with Presence: join and leave events update the number of online members.
+        const subscription = pubnub.channel(channel).subscription({ receivePresenceEvents: true });
+        let presenceEventSeen = false;
+        subscription.onPresence = (presenceEvent) => {
+            presenceEventSeen = true;
+            showOnlineCount(presenceEvent.occupancy);
+        };
         pubnub.hereNow({ // Update the number of online members.
             channels: [channel],
         }).then((response) => {
-            showOnlineCount(response.totalOccupancy);
+            // A Presence event that arrived first is newer; so is another view the user switched to meanwhile.
+            if (!presenceEventSeen && viewSubscriptions.includes(subscription)) showOnlineCount(response.totalOccupancy);
         }).catch((error) => {
             // console.log(error)
         });
-        // Subscribe to the category channel with Presence: join and leave events update the number of online members.
-        const subscription = pubnub.channel(channel).subscription({ receivePresenceEvents: true });
-        subscription.onPresence = (presenceEvent) => showOnlineCount(presenceEvent.occupancy);
         subscription.subscribe();
         viewSubscriptions.push(subscription);
     }
