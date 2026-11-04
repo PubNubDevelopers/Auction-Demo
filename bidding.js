@@ -43,6 +43,13 @@ function escapeHtml(text) {
     return String(text ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
+// A channel's messages from a fetchMessages response. The response names channels URL-encoded
+// (user|42 comes back as user%7C42), so look the channel up both ways.
+function historyOf(response, channel) {
+    const channels = (response && response.channels) || {};
+    return channels[channel] || channels[encodeURIComponent(channel)] || [];
+}
+
 function showCurrentBid(biddingChannel, bid) {
     const element = document.getElementById('current-bid-' + biddingChannel);
     if (element) element.textContent = formatter.format(Number(bid));
@@ -114,7 +121,7 @@ class auctionItemControl { // Formats messages and scrolls into view.
                             count: 1
                         },
                         function (status, response) {
-                            const lastMessage = response?.channels?.[new_msg.bidding_channel]?.[0];
+                            const lastMessage = historyOf(response, new_msg.bidding_channel)[0];
                             if (isWinner(lastMessage, pubnub.getUserId())) { // you won the bid!!
                                 document.getElementById('win-' + new_msg.bidding_channel).style.visibility = 'visible';
                             }
@@ -143,7 +150,7 @@ class auctionItemControl { // Formats messages and scrolls into view.
                 count: 1
             },
             function (status, response) {
-                const lastMessage = response?.channels?.[new_msg.bidding_channel]?.[0];
+                const lastMessage = historyOf(response, new_msg.bidding_channel)[0];
                 if (lastMessage && !liveBidSeen) showCurrentBid(new_msg.bidding_channel, lastMessage.message); // A live bid is newer.
             });
 
@@ -224,7 +231,7 @@ function placeBid(biddingChannel) {
             count: 1
         },
         function (status, response) {
-            const lastMessage = response?.channels?.[biddingChannel]?.[0];
+            const lastMessage = historyOf(response, biddingChannel)[0];
             const last_bid = lastMessage ? lastMessage.message : "0";
             const new_bid = document.getElementById(biddingChannel + '-bid-input').value;
             if (isHigherBid(new_bid, last_bid)) {
@@ -270,8 +277,8 @@ function loadMore() {
         },
         function (status, response) {
             let message_count = 0;
-            const messages = response?.channels?.[current_channel];
-            if (messages) {
+            const messages = historyOf(response, current_channel);
+            if (messages.length) {
                 messages.forEach((message) => {
                     message_count = message_count + 1;
                     if (message_count == 2) {
@@ -400,7 +407,8 @@ function loadBidding(channel) {
             // A Presence event that arrived first is newer; so is another view the user switched to meanwhile.
             if (!presenceEventSeen && viewSubscriptions.includes(subscription)) showOnlineCount(response.totalOccupancy);
         }).catch((error) => {
-            // console.log(error)
+            // No count from the server (for example, Presence doesn't track this channel): you are here, so show 1.
+            if (!presenceEventSeen && viewSubscriptions.includes(subscription)) showOnlineCount(0);
         });
         subscription.subscribe();
         viewSubscriptions.push(subscription);
@@ -415,8 +423,8 @@ function loadBidding(channel) {
         },
         function (status, response) {
             let message_count = 0;
-            const messages = response?.channels?.[current_channel];
-            if (messages) {
+            const messages = historyOf(response, current_channel);
+            if (messages.length) {
                 messages.forEach((message) => {
                     message_count = message_count + 1;
                     if (message_count == 2) {
