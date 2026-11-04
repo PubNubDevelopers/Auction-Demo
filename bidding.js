@@ -1,51 +1,16 @@
-//let auth0 = null;
-let sub = null;
-let pubnub = null;
+// The PubNub client and your User ID come from config.js.
+let sub = null; // Your User ID: your bids go to the channel <User ID>, your auctions to <User ID>_auctions.
 let first_result = null;
 let current_channel = null;
 let itemsArea = document.getElementById('items-area');
-let orgwindowlocation = getCookie('orgwindowlocation');
 
-window.onload = async () => {
-    await configureClient()
-    await processLoginState()
-    updateUI();
+window.onload = () => {
+    sub = pubnub.getUserId();
     itemsArea = document.getElementById('items-area');
-}
-
-function getCookie(cName) {
-    const name = cName + "=";
-    const cDecoded = decodeURIComponent(document.cookie);
-    const cArr = cDecoded .split('; ');
-    let res;
-    cArr.forEach(val => {
-        if (val.indexOf(name) === 0) res = val.substring(name.length);
-    })
-    return res;
-}
-
-const configureClient = async () => {
-    //auth0 = await createAuth0Client({
-    //    domain: "authclone.auth0.com",
-    //    client_id: "SLdXBBCNTZTa99Zio4Pe8eJ5hxjPrOS5",
-    //})
-}
-
-const processLoginState = async () => {
-    // Check code and state parameters
-    //const query = window.location.search
-    //if (query.includes("code=") && query.includes("state=")) {
-    //    // Process the login state
-    //    await auth0.handleRedirectCallback()
-    //    // Use replaceState to redirect the user away and remove the querystring parameters
-    //    window.history.replaceState({}, document.title, window.location.pathname)
-    //}
+    loadBidding("your-bids");
 }
 
 const logout = () => {
-    //auth0.logout({
-    //    returnTo: "https://pubnubdevelopers.github.io/Auction-Demo/",
-    //})
     window.location.href = "./index.html" + window.location.search
 }
 
@@ -59,9 +24,40 @@ function makeRandom(length) {
     return result;
 }
 
+let viewSubscriptions = []; // The current view's subscriptions: its category channel and the items' bidding channels.
+const displayedItems = new Map(); // Bidding channel → item, for the items on screen.
+
+// A bid must be a positive number higher than the current bid. Amounts are strings with cents, like "10.50".
+function isHigherBid(newBid, lastBid) {
+    const bid = Number(newBid);
+    return String(newBid).trim() !== '' && Number.isFinite(bid) && bid > 0 && bid > Number(lastBid);
+}
+
+// You won if the last message on the bidding channel is a real bid (not the "0" that opens the auction) and you sent it.
+function isWinner(lastMessage, userId) {
+    return !!lastMessage && Number(lastMessage.message) > 0 && lastMessage.uuid === userId;
+}
+
+// Item text comes from other users, so escape it before putting it into the page's HTML.
+function escapeHtml(text) {
+    return String(text ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// A channel's messages from a fetchMessages response. The response names channels URL-encoded
+// (user|42 comes back as user%7C42), so look the channel up both ways.
+function historyOf(response, channel) {
+    const channels = (response && response.channels) || {};
+    return channels[channel] || channels[encodeURIComponent(channel)] || [];
+}
+
+function showCurrentBid(biddingChannel, bid) {
+    const element = document.getElementById('current-bid-' + biddingChannel);
+    if (element) element.textContent = formatter.format(Number(bid));
+}
+
 class auctionItemControl { // Formats messages and scrolls into view.
     displayItem(uuid, msg_uuid, msg, timetoken) {
-        if (!itemsArea.innerHTML.includes(msg.bidding_channel)) {
+        if (msg && msg.bidding_channel && !displayedItems.has(msg.bidding_channel)) {
             itemsArea.innerHTML = this.msg(uuid, msg_uuid, msg, 'center', 'dark', timetoken) + itemsArea.innerHTML
         }
     }
@@ -76,7 +72,6 @@ class auctionItemControl { // Formats messages and scrolls into view.
         new_msg.image = msg.image;
         new_msg.shipping = msg.shipping;
         new_msg.collect_details = msg.collect_details;
-
         if (new_msg.description == undefined) {
             new_msg.description = "This is a rare item. Bid on this item as you will never find it ever again. I only have one.";
         }
@@ -126,12 +121,9 @@ class auctionItemControl { // Formats messages and scrolls into view.
                             count: 1
                         },
                         function (status, response) {
-                            if (response.channels[encodeURIComponent(new_msg.bidding_channel)] && encodeURIComponent(new_msg.bidding_channel) in response.channels) {
-                                response.channels[encodeURIComponent(new_msg.bidding_channel)].forEach((message) => {
-                                    if (message.uuid == pubnub.getUUID()) { // you won the bid!!
-                                        document.getElementById('win-' + new_msg.bidding_channel).style.visibility = 'visible';
-                                    }
-                                });
+                            const lastMessage = historyOf(response, new_msg.bidding_channel)[0];
+                            if (isWinner(lastMessage, pubnub.getUserId())) { // you won the bid!!
+                                document.getElementById('win-' + new_msg.bidding_channel).style.visibility = 'visible';
                             }
                         });
                 }
@@ -140,10 +132,16 @@ class auctionItemControl { // Formats messages and scrolls into view.
             }
         }, 1000);
 
-        pubnub.subscribe({ // Subscribe to wait for messages
-            channels: [new_msg.bidding_channel],
-            withPresence: false
-        });
+        // Subscribe to the item's bidding channel: every new bid updates the current bid.
+        const subscription = pubnub.channel(new_msg.bidding_channel).subscription();
+        let liveBidSeen = false;
+        subscription.onMessage = (event) => {
+            liveBidSeen = true;
+            showCurrentBid(event.channel, event.message);
+        };
+        subscription.subscribe();
+        viewSubscriptions.push(subscription);
+        displayedItems.set(new_msg.bidding_channel, new_msg);
 
         // Get last Bid
         pubnub.fetchMessages(
@@ -152,36 +150,35 @@ class auctionItemControl { // Formats messages and scrolls into view.
                 count: 1
             },
             function (status, response) {
-                if (response.channels[encodeURIComponent(new_msg.bidding_channel)] && encodeURIComponent(new_msg.bidding_channel) in response.channels) {
-                    response.channels[encodeURIComponent(new_msg.bidding_channel)].forEach((message) => {
-                        document.getElementById('current-bid-' + new_msg.bidding_channel).innerHTML = formatter.format(message.message);
-                    });
-                }
+                const lastMessage = historyOf(response, new_msg.bidding_channel)[0];
+                if (lastMessage && !liveBidSeen) showCurrentBid(new_msg.bidding_channel, lastMessage.message); // A live bid is newer.
             });
 
         // Delete the next line to fix images
         new_msg.image = "./images/lamp.png";
         var new_vote = "x"+makeRandom(5);
+        var item = {}; // The item's fields, escaped for HTML.
+        for (const key of Object.keys(new_msg)) item[key] = escapeHtml(new_msg[key]);
         var msgTemp = `
             <div class="card text-white bg-${style}">
                 <div class="card-body">
-                    <h2 class="card-subtitle mb-2 text-${side}"> <span class="display-${uuid}">${new_msg.name}<span></h2>
+                    <h2 class="card-subtitle mb-2 text-${side}"> <span class="display-${uuid}">${item.name}<span></h2>
                     <div class="text-center">
-                        <img src="${new_msg.image}" class="rounded" alt="Image of item for sale">
+                        <img src="${item.image}" class="rounded" alt="Image of item for sale">
                     </div>
                     <br>
-                    <h3 class="card-subtitle mb-2 text-${side}"><small>Time Left: <span data-endtime="${new_msg.end_time}" data-biddingchannel="${new_msg.bidding_channel}" class="countdowns" id="countdown-${new_msg.bidding_channel}"><span></small></h3>
-                    <h3 class="card-subtitle mb-2 text-${side}"><small>Current Bid: <span id="current-bid-${new_msg.bidding_channel}">No Bids Yet<span></small></h3>
+                    <h3 class="card-subtitle mb-2 text-${side}"><small>Time Left: <span data-endtime="${item.end_time}" data-biddingchannel="${item.bidding_channel}" class="countdowns" id="countdown-${item.bidding_channel}"><span></small></h3>
+                    <h3 class="card-subtitle mb-2 text-${side}"><small>Current Bid: <span id="current-bid-${item.bidding_channel}">No Bids Yet<span></small></h3>
                     <h6 class="card-subtitle mb-2 text-${side}"><small>Posted on: ${timedisplay}</small></h6>
-                    <h6 class="card-subtitle mb-2 text-${side}"><small>Offers Shipping: ${new_msg.shipping}</small></h6>
-                    <p class="card-text text-${side}">${new_msg.description}</p>
-                    <div class="alert alert-warning" id="win-${new_msg.bidding_channel}" style="visibility: hidden;" role="alert">
+                    <h6 class="card-subtitle mb-2 text-${side}"><small>Offers Shipping: ${item.shipping}</small></h6>
+                    <p class="card-text text-${side}">${item.description}</p>
+                    <div class="alert alert-warning" id="win-${item.bidding_channel}" style="visibility: hidden;" role="alert">
                         <h2 class="card-subtitle mb-2 text-${side}">You won this item!</h2>
-                        <h4 class="card-subtitle mb-2 text-${side}"><small>Collection Details: ${new_msg.collect_details}</small></h6>
+                        <h4 class="card-subtitle mb-2 text-${side}"><small>Collection Details: ${item.collect_details}</small></h6>
                     </div>
 
                     <div class="col text-center">
-                        <div class="accordion accordion-flush ${new_msg.bidding_channel}-accordionBid" id="${new_vote}accordionBid">
+                        <div class="accordion accordion-flush ${item.bidding_channel}-accordionBid" id="${new_vote}accordionBid">
                             <div class="accordion-item">
                                 <h2 class="accordion-header" id="headingPlaceBid">
                                 <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#${new_vote}collapseOne" aria-expanded="true" aria-controls="${new_vote}collapseOne">
@@ -196,9 +193,9 @@ class auctionItemControl { // Formats messages and scrolls into view.
                                         <form>
                                             <div class="mb-3">
                                                 <h5><label for="submitBid" class="form-label">Your Bid:</label></h5>
-                                                <input id="${new_msg.bidding_channel}-bid-input" type="number" min="0.01" step="0.01"  class="form-control" id="submitBid">
+                                                <input id="${item.bidding_channel}-bid-input" type="number" min="0.01" step="0.01"  class="form-control" id="submitBid">
                                             </div>
-                                            <button type="button" id="${new_msg.bidding_channel}-bid" onclick="placeBid('${new_msg.bidding_channel}', '${new_msg.name}','${new_msg.description}', '${new_msg.image}', '${new_msg.collect_details}', '${new_msg.shipping}', '${new_msg.end_time}')" class="btn btn-primary">Place Bid</button>
+                                            <button type="button" id="${item.bidding_channel}-bid" data-bidding-channel="${item.bidding_channel}" class="btn btn-primary">Place Bid</button>
                                         </form>
                                     </div>
                                 </div>
@@ -219,56 +216,59 @@ var formatter = new Intl.NumberFormat('en-US', {
 
 var auction_item = new auctionItemControl();
 
-function placeBid(new_msg_bidding_channel, new_msg_name, new_msg_description, new_msg_image, new_msg_collect_details, new_msg_shipping, new_msg_end_time) {
+// The Place Bid buttons carry their item's bidding channel.
+document.addEventListener('click', (event) => {
+    const button = event.target.closest('button[data-bidding-channel]');
+    if (button) placeBid(button.dataset.biddingChannel);
+});
+
+function placeBid(biddingChannel) {
+    const item = displayedItems.get(biddingChannel);
     // Get last Bid
     pubnub.fetchMessages(
         {
-            channels: [new_msg_bidding_channel],
+            channels: [biddingChannel],
             count: 1
         },
         function (status, response) {
-            if (response.channels[encodeURIComponent(new_msg_bidding_channel)] && encodeURIComponent(new_msg_bidding_channel) in response.channels) {
-                response.channels[encodeURIComponent(new_msg_bidding_channel)].forEach((message) => {
-                    var last_bid = message.message;
-                    var new_bid = document.getElementById(new_msg_bidding_channel + '-bid-input').value;
-                    if (parseInt(new_bid) > parseInt(last_bid)) {
-                        pubnub.publish({
-                            message: new_bid,
-                            channel: new_msg_bidding_channel,
-                        }, (status, response) => {
-                            // handle status, response
-                            //console.log(response);
-                        });
-                        // Add to your-bids
-                        let new_auction_item = {
-                            name: new_msg_name,
-                            description: new_msg_description,
-                            image: new_msg_image,
-                            collect_details: new_msg_collect_details,
-                            shipping: new_msg_shipping,
-                            end_time: new_msg_end_time,
-                            bidding_channel: new_msg_bidding_channel
-                        }
-                        pubnub.publish({
-                            message: new_auction_item,
-                            channel: sub,
-                        }, (status, response) => {
-                            // handle status, response
-                            // console.log(response);
-                        });
-                        actionCompleted({action: 'Place A Bid', windowLocation: orgwindowlocation}); // This is for the interactive demo on PubNub.com. It is not part of the demo of this application. 
-                        alert("Your bid has been placed.")
-                    } else {
-                        alert("Your new bid must be higher than the previous bids.")
-                    }
+            const lastMessage = historyOf(response, biddingChannel)[0];
+            const last_bid = lastMessage ? lastMessage.message : "0";
+            const new_bid = document.getElementById(biddingChannel + '-bid-input').value;
+            if (isHigherBid(new_bid, last_bid)) {
+                pubnub.publish({
+                    message: new_bid,
+                    channel: biddingChannel,
+                }, (status, response) => {
+                    // handle status, response
+                    //console.log(response);
                 });
+                // Add to your-bids
+                let new_auction_item = {
+                    name: item.name,
+                    description: item.description,
+                    image: item.image,
+                    collect_details: item.collect_details,
+                    shipping: item.shipping,
+                    end_time: item.end_time,
+                    bidding_channel: biddingChannel
+                }
+                pubnub.publish({
+                    message: new_auction_item,
+                    channel: sub,
+                }, (status, response) => {
+                    // handle status, response
+                    // console.log(response);
+                });
+                alert("Your bid has been placed.")
+            } else {
+                alert("Your new bid must be higher than the previous bids.")
             }
         });
 }
 
 function loadMore() {
     document.getElementById('page-buttons').style.visibility = 'hidden';
-    pubnub.fetchMessages( // Get the last 10 items
+    pubnub.fetchMessages( // Get the latest items
         {
             channels: [current_channel],
             count: 11,
@@ -277,8 +277,9 @@ function loadMore() {
         },
         function (status, response) {
             let message_count = 0;
-            if (response.channels[encodeURIComponent(current_channel)] && encodeURIComponent(current_channel) in response.channels) {
-                response.channels[encodeURIComponent(current_channel)].forEach((message) => {
+            const messages = historyOf(response, current_channel);
+            if (messages.length) {
+                messages.forEach((message) => {
                     message_count = message_count + 1;
                     if (message_count == 2) {
                         first_result = message.timetoken;
@@ -286,15 +287,20 @@ function loadMore() {
                     if (message_count > 10) {
                         document.getElementById('page-buttons').style.visibility = 'visible';
                     }
-                    auction_item.displayItem(pubnub.getUUID(), message.uuid, message, message.timetoken);
+                    auction_item.displayItem(pubnub.getUserId(), message.uuid, message.message, message.timetoken);
                 });
             }
             if (document.getElementById('items-area').childNodes.length === 0) {
-                document.getElementById('items-area').innerHTML = "<div class='card text-white bg-dark'><div class='card-body'>There are no auction listings to show. Select a category from then menu and then create a new auction. Auctions you create can be viewed in the 'Your Auctions' section. When you place a bid on an auction item it can be viewed in the 'Your Bids' section.</div></div>"
+                document.getElementById('items-area').innerHTML = "<div class='card text-white bg-dark'><div class='card-body'>There are no auction listings to show. Select a category from the menu and then create a new auction. Auctions you create can be viewed in the 'Your Auctions' section. When you place a bid on an auction item it can be viewed in the 'Your Bids' section.</div></div>"
             } 
         }
     );
     return false;
+}
+
+// You are on the page too, so show at least 1.
+function showOnlineCount(occupancy) {
+    document.getElementById("online-users-count").textContent = occupancy > 0 ? occupancy : 1;
 }
 
 function setActive(e) {
@@ -355,7 +361,6 @@ function newItem() {
         // handle status, response
         //console.log(response);
     });
-    actionCompleted({action: 'Create An Auction', windowLocation: orgwindowlocation}); // This is for the interactive demo on PubNub.com. It is not part of the demo of this application. 
 
     alert("New auction has been posted.");
     document.getElementById('contactInput').value = "";
@@ -368,7 +373,9 @@ function loadBidding(channel) {
     if (itemsArea != null) 
     
     itemsArea.innerHTML = "";
-    pubnub.unsubscribeAll();
+    viewSubscriptions.forEach((subscription) => subscription.unsubscribe()); // Leave the previous view's channels.
+    viewSubscriptions = [];
+    displayedItems.clear();
     current_channel = channel;
     if (channel == "your-bids") {
         current_channel = sub;
@@ -378,50 +385,37 @@ function loadBidding(channel) {
         document.getElementById('online-users-label').style.visibility = 'hidden';
     } else if (channel == "auctions") { // If loading your bids or auctions then hide the create new auction button
         setActive("auctions");
-        actionCompleted({action: 'View Your Auctions', windowLocation: orgwindowlocation}); // This is for the interactive demo on PubNub.com. It is not part of the demo of this application. 
         current_channel = sub + "_auctions";
         document.getElementById('cat-label-head').innerHTML = "Your Auctions";
         document.getElementById('create_new').style.visibility = 'hidden';
         document.getElementById('online-users-label').style.visibility = 'hidden';
     } else {
         setActive(channel);
-        actionCompleted({action: 'Change Category', windowLocation: orgwindowlocation}); // This is for the interactive demo on PubNub.com. It is not part of the demo of this application. 
         document.getElementById('cat-label-head').innerHTML = channel;
         document.getElementById('create_new').style.visibility = 'visible';
         document.getElementById('online-users-label').style.visibility = 'visible';
+        // Subscribe to the category channel with Presence: join and leave events update the number of online members.
+        const subscription = pubnub.channel(channel).subscription({ receivePresenceEvents: true });
+        let presenceEventSeen = false;
+        subscription.onPresence = (presenceEvent) => {
+            presenceEventSeen = true;
+            showOnlineCount(presenceEvent.occupancy);
+        };
         pubnub.hereNow({ // Update the number of online members.
             channels: [channel],
         }).then((response) => {
-            if (response.totalOccupancy == 0) {
-                document.getElementById("online-users-count").innerHTML = "1";
-            } else {
-                document.getElementById("online-users-count").innerHTML = response.totalOccupancy;
-            }
+            // A Presence event that arrived first is newer; so is another view the user switched to meanwhile.
+            if (!presenceEventSeen && viewSubscriptions.includes(subscription)) showOnlineCount(response.totalOccupancy);
         }).catch((error) => {
-            // console.log(error)
+            // No count from the server (for example, Presence doesn't track this channel): you are here, so show 1.
+            if (!presenceEventSeen && viewSubscriptions.includes(subscription)) showOnlineCount(0);
         });
-        pubnub.subscribe({ // Subscribe to wait for messages
-            channels: [channel],
-            withPresence: true
-        });
+        subscription.subscribe();
+        viewSubscriptions.push(subscription);
     }
 
-    pubnub.addListener({ // Get new messages.
-        presence: (presenceEvent) => { // Update the number of online members.
-            if (presenceEvent.occupancy == 0) {
-                document.getElementById("online-users-count").innerHTML = "1";
-            } else {
-                document.getElementById("online-users-count").innerHTML = presenceEvent.occupancy;
-            }
-        },
-        message: function (msg) {
-            // console.log(msg);
-            document.getElementById("current-bid-" + msg.channel).innerHTML = formatter.format(msg.message);
-        }
-    });
-
     document.getElementById('page-buttons').style.visibility = 'hidden';
-    pubnub.fetchMessages( // Get the last 10 items
+    pubnub.fetchMessages( // Get the latest items
         {
             channels: [current_channel],
             count: 11,
@@ -429,8 +423,9 @@ function loadBidding(channel) {
         },
         function (status, response) {
             let message_count = 0;
-            if (response.channels[encodeURIComponent(current_channel)] && encodeURIComponent(current_channel) in response.channels) {
-                response.channels[encodeURIComponent(current_channel)].forEach((message) => {
+            const messages = historyOf(response, current_channel);
+            if (messages.length) {
+                messages.forEach((message) => {
                     message_count = message_count + 1;
                     if (message_count == 2) {
                         first_result = message.timetoken;
@@ -438,75 +433,12 @@ function loadBidding(channel) {
                     if (message_count > 10) {
                         document.getElementById('page-buttons').style.visibility = 'visible';
                     }
-                    auction_item.displayItem(pubnub.getUUID(), message.uuid, message.message, message.timetoken);
+                    auction_item.displayItem(pubnub.getUserId(), message.uuid, message.message, message.timetoken);
                 });
             }
             if (document.getElementById('items-area').childNodes.length === 0) {
-                document.getElementById('items-area').innerHTML = "<div class='card text-white bg-dark'><div class='card-body'>There are no auction listings to show. Select a category from then menu and then create a new auction. Auctions you create can be viewed in the 'Your Auctions' section. When you place a bid on an auction item it can be viewed in the 'Your Bids' section.</div></div>"
+                document.getElementById('items-area').innerHTML = "<div class='card text-white bg-dark'><div class='card-body'>There are no auction listings to show. Select a category from the menu and then create a new auction. Auctions you create can be viewed in the 'Your Auctions' section. When you place a bid on an auction item it can be viewed in the 'Your Bids' section.</div></div>"
             } 
         }
     );
 }
-
-const updateUI = async () => {
-    //const isAuthenticated = await auth0.isAuthenticated()
-    const isAuthenticated = true;
-    if (!isAuthenticated) {
-        //window.location.replace("https://pubnubdevelopers.github.io/Auction-Demo/");
-    } else {
-        //const userdetails = await auth0.getUser();
-        const userdetails = {
-            "nickname": "devrel",
-            "name": "devrel@pubnub.com",
-            "picture": "https://s.gravatar.com/avatar/1c640ddc62e2a85a6820eed4eb5e8090?s=480&r=pg&d=https%3A%2F%2Fcdn.auth0.com%2Favatars%2Fde.png",
-            "updated_at": "2023-09-12T13:17:24.101Z",
-            "email": "devrel@pubnub.com",
-            "email_verified": false,
-            "sub": "auth0|633708320565b1f8a9d62333"
-        }
-        // console.log("User ID: " + userdetails.sub);
-        pubnub = new PubNub({ // Set your PubNub keys here 
-            publishKey: 'pub-c-1d61c6ac-e949-437e-bdc1-8a3e324b6dc9',
-            subscribeKey: 'sub-c-0a9e48a8-f4a8-4d62-bbf0-242c60f5a522',
-            uuid: userdetails.sub
-        });
-
-        //  IN PRODUCTION: Replace with your own logic to request an Access Manager token
-        var accessManagerToken = await requestAccessManagerToken(userdetails.sub)
-        if (accessManagerToken == null) {
-            console.log('Error retrieving access manager token')
-        } else {
-            pubnub.setToken(accessManagerToken)
-            //  The server that provides the token for this app is configured to grant a time to live (TTL)
-            //  of 360 minutes (i.e. 6 hours).  IN PRODUCTION, for security reasons, you should set a value
-            //  between 10 and 60 minutes and refresh the token before it expires.
-            //  For simplicity, this app does not refresh the token
-        }
-
-        sub = userdetails.sub;
-        loadBidding("your-bids");
-        document.cookie.split(";").forEach(function(c) { document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); });
-    }
-}
-
-async function requestAccessManagerToken (userId) {
-    try {
-        const TOKEN_SERVER = 'https://devrel-demos-access-manager.netlify.app/.netlify/functions/api/auctions'
-        const response = await fetch(`${TOKEN_SERVER}/grant`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ UUID: userId })
-        })
-
-        const token = (await response.json()).body.token
-        //console.log('created token: ' + token)
-
-        return token
-    } catch (e) {
-        console.log('failed to create token ' + e)
-        return null
-    }
-}
-
