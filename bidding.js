@@ -1,51 +1,16 @@
-//let auth0 = null;
-let sub = null;
-let pubnub = null;
+// The PubNub client and your User ID come from config.js.
+let sub = null; // Your User ID: your bids go to the channel <User ID>, your auctions to <User ID>_auctions.
 let first_result = null;
 let current_channel = null;
 let itemsArea = document.getElementById('items-area');
-let orgwindowlocation = getCookie('orgwindowlocation');
 
-window.onload = async () => {
-    await configureClient()
-    await processLoginState()
-    updateUI();
+window.onload = () => {
+    sub = pubnub.getUserId();
     itemsArea = document.getElementById('items-area');
-}
-
-function getCookie(cName) {
-    const name = cName + "=";
-    const cDecoded = decodeURIComponent(document.cookie);
-    const cArr = cDecoded .split('; ');
-    let res;
-    cArr.forEach(val => {
-        if (val.indexOf(name) === 0) res = val.substring(name.length);
-    })
-    return res;
-}
-
-const configureClient = async () => {
-    //auth0 = await createAuth0Client({
-    //    domain: "authclone.auth0.com",
-    //    client_id: "SLdXBBCNTZTa99Zio4Pe8eJ5hxjPrOS5",
-    //})
-}
-
-const processLoginState = async () => {
-    // Check code and state parameters
-    //const query = window.location.search
-    //if (query.includes("code=") && query.includes("state=")) {
-    //    // Process the login state
-    //    await auth0.handleRedirectCallback()
-    //    // Use replaceState to redirect the user away and remove the querystring parameters
-    //    window.history.replaceState({}, document.title, window.location.pathname)
-    //}
+    loadBidding("your-bids");
 }
 
 const logout = () => {
-    //auth0.logout({
-    //    returnTo: "https://pubnubdevelopers.github.io/Auction-Demo/",
-    //})
     window.location.href = "./index.html" + window.location.search
 }
 
@@ -447,66 +412,3 @@ function loadBidding(channel) {
         }
     );
 }
-
-const updateUI = async () => {
-    //const isAuthenticated = await auth0.isAuthenticated()
-    const isAuthenticated = true;
-    if (!isAuthenticated) {
-        //window.location.replace("https://pubnubdevelopers.github.io/Auction-Demo/");
-    } else {
-        //const userdetails = await auth0.getUser();
-        const userdetails = {
-            "nickname": "devrel",
-            "name": "devrel@pubnub.com",
-            "picture": "https://s.gravatar.com/avatar/1c640ddc62e2a85a6820eed4eb5e8090?s=480&r=pg&d=https%3A%2F%2Fcdn.auth0.com%2Favatars%2Fde.png",
-            "updated_at": "2023-09-12T13:17:24.101Z",
-            "email": "devrel@pubnub.com",
-            "email_verified": false,
-            "sub": "auth0|633708320565b1f8a9d62333"
-        }
-        // console.log("User ID: " + userdetails.sub);
-        pubnub = new PubNub({ // Set your PubNub keys here 
-            publishKey: 'pub-c-1d61c6ac-e949-437e-bdc1-8a3e324b6dc9',
-            subscribeKey: 'sub-c-0a9e48a8-f4a8-4d62-bbf0-242c60f5a522',
-            uuid: userdetails.sub
-        });
-
-        //  IN PRODUCTION: Replace with your own logic to request an Access Manager token
-        var accessManagerToken = await requestAccessManagerToken(userdetails.sub)
-        if (accessManagerToken == null) {
-            console.log('Error retrieving access manager token')
-        } else {
-            pubnub.setToken(accessManagerToken)
-            //  The server that provides the token for this app is configured to grant a time to live (TTL)
-            //  of 360 minutes (i.e. 6 hours).  IN PRODUCTION, for security reasons, you should set a value
-            //  between 10 and 60 minutes and refresh the token before it expires.
-            //  For simplicity, this app does not refresh the token
-        }
-
-        sub = userdetails.sub;
-        loadBidding("your-bids");
-        document.cookie.split(";").forEach(function(c) { document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); });
-    }
-}
-
-async function requestAccessManagerToken (userId) {
-    try {
-        const TOKEN_SERVER = 'https://devrel-demos-access-manager.netlify.app/.netlify/functions/api/auctions'
-        const response = await fetch(`${TOKEN_SERVER}/grant`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ UUID: userId })
-        })
-
-        const token = (await response.json()).body.token
-        //console.log('created token: ' + token)
-
-        return token
-    } catch (e) {
-        console.log('failed to create token ' + e)
-        return null
-    }
-}
-
